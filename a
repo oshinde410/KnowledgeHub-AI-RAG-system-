@@ -1,0 +1,49 @@
+Run it in this order.
+
+1. Start infra
+From project root:
+
+cd C:\Users\oshin\Desktop\python1
+docker compose up -d postgres redis qdrant
+2. Install backend deps
+
+cd C:\Users\oshin\Desktop\python1\backend
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
+3. Apply database migrations
+
+..\.venv\Scripts\python.exe -m alembic upgrade head
+4. Start backend API
+Open one terminal:
+
+cd C:\Users\oshin\Desktop\python1\backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+Backend will run at:
+
+http://127.0.0.1:8000
+5. Start Celery worker
+Open a second terminal:
+
+cd C:\Users\oshin\Desktop\python1\backend
+..\.venv\Scripts\celery.exe -A app.celery_app.celery_app worker --loglevel=info --pool=solo
+--pool=solo is important on Windows.
+
+6. Start frontend
+Open a third terminal:
+
+cd C:\Users\oshin\Desktop\python1\frontend
+npm install
+npm run dev
+Frontend will run at:
+
+http://127.0.0.1:5173
+7. Ollama
+Your backend uses qwen3:4b, so make sure Ollama is installed and the model is available:
+
+ollama pull qwen3:4b
+ollama serve
+Usually Ollama already runs in the background after installation.
+
+Then open:
+
+http://127.0.0.1:5173
+Register a user, log in, upload PDF/TXT docs, wait for indexing, then use chat/search.

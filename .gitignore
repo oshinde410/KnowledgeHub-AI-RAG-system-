@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+*.log
+*.sqlite3
+
+# Virtual environments
+.venv/
+venv/
+
+# --- Backend secrets ---
+backend/.env
+
+# --- Backend uploads ---
+backend/uploads/
+
+# --- Alembic ---
+*.db
+
+# --- Frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.env*
+frontend/tsconfig.tsbuildinfo
+
+# Vite/TS build outputs
+*.tsbuildinfo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Misc ---
+*.bak
+*.new
+"
