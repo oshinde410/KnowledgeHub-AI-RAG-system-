@@ -18,14 +18,14 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=[
-    #     origin.strip()
-    #     for origin in settings.ALLOWED_ORIGINS.split(",")
-    #     if origin.strip()
-    # ],
     allow_origins=[
-        "https://knowledge-hub-ai-rag-system.vercel.app/"
+        origin.strip()
+        for origin in settings.ALLOWED_ORIGINS.split(",")
+        if origin.strip()
     ],
+    # allow_origins=[
+    #     "https://knowledge-hub-ai-rag-system.vercel.app/"
+    # ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
