@@ -9,10 +9,22 @@ from qdrant_client.models import FilterSelector
 from app.core.config import settings
 
 
-client = QdrantClient(
-    host=settings.QDRANT_HOST,
-    port=settings.QDRANT_PORT
-)
+# Supports both local Qdrant (host/port) and Qdrant Cloud (cluster endpoint + API key).
+# Prefer QDRANT_CLUSTER_ENDPOINT when provided.
+_client_kwargs: dict = {}
+if getattr(settings, "QDRANT_CLUSTER_ENDPOINT", None):
+    _client_kwargs.update(
+        url=settings.QDRANT_CLUSTER_ENDPOINT,
+        api_key=getattr(settings, "QDRANT_API_KEY", None),
+    )
+else:
+    _client_kwargs.update(
+        host=settings.QDRANT_HOST,
+        port=settings.QDRANT_PORT,
+    )
+
+client = QdrantClient(**_client_kwargs)
+
 
 from qdrant_client.models import (
     Distance,
