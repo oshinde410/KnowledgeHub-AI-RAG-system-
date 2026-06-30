@@ -33,24 +33,37 @@ from qdrant_client.models import (
 
 
 def create_collection():
+    """Create Qdrant collection if missing.
 
-    collections = client.get_collections()
+    IMPORTANT for Render free tier:
+    Qdrant networking may be unavailable during container startup.
+    Failing fast here prevents the whole web app from booting.
 
-    existing = [
-        c.name
-        for c in collections.collections
-    ]
+    We therefore treat startup collection init as best-effort.
+    """
+    # Optional env to skip initialization entirely.
+    import os
 
-    if "document_chunks" in existing:
+    if os.getenv("SKIP_QDRANT_INIT", "false").lower() in {"1", "true", "yes"}:
         return
 
-    client.create_collection(
-        collection_name="document_chunks",
-        vectors_config=VectorParams(
-            size=384,
-            distance=Distance.COSINE
+    try:
+        collections = client.get_collections()
+        existing = [c.name for c in collections.collections]
+        if "document_chunks" in existing:
+            return
+
+        client.create_collection(
+            collection_name="document_chunks",
+            vectors_config=VectorParams(
+                size=384,
+                distance=Distance.COSINE,
+            ),
         )
-    )
+    except Exception as exc:
+        # Best-effort logging; never crash app startup due to Qdrant.
+        print("[qdrant_service] create_collection skipped due to error:", repr(exc))
+        return
 
 def insert_chunk(
     chunk_id,
