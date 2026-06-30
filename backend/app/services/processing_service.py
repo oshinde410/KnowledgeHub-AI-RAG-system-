@@ -72,13 +72,9 @@ def process_document(
                 chunk_id=db_chunk.id,
                 document_id=document.id,
                 chunk_text=chunk,
-                vector=vector
+                vector=vector,
             )
 
-            vector = create_embedding(chunk)
-
-            print("VECTOR TYPE:", type(vector))
-            print("VECTOR LENGTH:", len(vector) if vector else None)
 
         document.status = "INDEXED"
         if job:

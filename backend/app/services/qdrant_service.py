@@ -56,9 +56,16 @@ def insert_chunk(
     chunk_id,
     document_id,
     chunk_text,
-    vector
+    vector,
 ):
+    """Insert chunk vector into Qdrant.
 
+    To keep Render free-tier memory/network usage low, we avoid storing the
+    full chunk text inside Qdrant payload.
+
+    If you later need chunk text from Qdrant, store only document_id + chunk_id
+    and fetch chunk text from Postgres (DocumentChunk table).
+    """
     client.upsert(
         collection_name="document_chunks",
         points=[
@@ -68,10 +75,10 @@ def insert_chunk(
                 payload={
                     "document_id": document_id,
                     "chunk_id": chunk_id,
-                    "chunk_text": chunk_text
-                }
+                    # intentionally omit "chunk_text"
+                },
             )
-        ]
+        ],
     )
 
 def search_chunks(

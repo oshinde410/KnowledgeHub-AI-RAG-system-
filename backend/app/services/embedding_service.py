@@ -1,11 +1,27 @@
-from sentence_transformers import SentenceTransformer
+from __future__ import annotations
 
-model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+from typing import Any
+
+_model: Any | None = None
+
+
+def _get_model():
+    """Lazy-load the SentenceTransformer model.
+
+    Render free-tier RAM is limited; importing this module should stay light.
+    The first embedding call loads the model once per process.
+    """
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+
+        # Keep the same model for compatibility.
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
 
 
 def create_embedding(text: str):
-    return model.encode(
-        text
-    ).tolist()
+    model = _get_model()
+    # encode -> numpy array; convert to python list for JSON/Qdrant client.
+    return model.encode(text).tolist()
+
