@@ -13,6 +13,8 @@ from app.services.document_service import save_document
 from app.services.document_service import delete_document
 from app.services.job_service import create_processing_job
 from app.services.job_service import list_processing_jobs
+from app.services.processing_service import process_document
+from app.core.config import settings
 from app.models.document import Document
 from app.models.document_content import DocumentContent
 from app.models.document_chunk import DocumentChunk
@@ -45,17 +47,35 @@ def upload_document(
             document.id
         )
 
-        celery_app.send_task(
-            "app.tasks.process_document_task",
-            args=[document.id, job.id],
-            ignore_result=True,
-        )
+        try:
+            celery_app.send_task(
+                "app.tasks.process_document_task",
+                args=[document.id, job.id],
+                ignore_result=True,
+            )
+            status = "PENDING"
+        except Exception as exc:
+            print(
+                "[api.documents] Celery broker unavailable, processing document synchronously:",
+                repr(exc)
+            )
+            if not settings.GEMINI_API_KEY:
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Document upload failed because Celery is unavailable "
+                        "and GEMINI_API_KEY is not configured for fallback."
+                    ),
+                )
+
+            process_document(db, document, job_id=job.id)
+            status = "COMPLETED"
 
         return {
             "message": "Upload successful",
             "document_id": document.id,
             "job_id": job.id,
-            "status": "PENDING"
+            "status": status
         }
 
     except ValueError as e:

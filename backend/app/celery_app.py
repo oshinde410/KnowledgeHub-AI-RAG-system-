@@ -8,6 +8,15 @@ import os
 _redis_url = os.getenv("REDIS_URL", settings.REDIS_URL)
 _result_backend_url = os.getenv("CELERY_RESULT_BACKEND", "")
 
+
+def _normalize_redis_url(raw_url: str) -> str:
+    if raw_url.startswith("redis://") and "upstash.io" in raw_url:
+        return raw_url.replace("redis://", "rediss://", 1)
+    return raw_url
+
+_redis_url = _normalize_redis_url(_redis_url)
+_result_backend_url = _normalize_redis_url(_result_backend_url) if _result_backend_url else ""
+
 print(f"[celery_app] REDIS_URL resolved as: {_redis_url}")
 print(f"[celery_app] CELERY_RESULT_BACKEND resolved as: {_result_backend_url or '<none>'}")
 
