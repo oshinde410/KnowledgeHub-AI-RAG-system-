@@ -8,7 +8,11 @@ import type {
   User
 } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+const DEFAULT_API_URL = import.meta.env.PROD
+  ? "https://knowledgehub-ai-rag-system.onrender.com"
+  : "http://127.0.0.1:8000";
+
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("kh_token");
@@ -135,10 +139,21 @@ export function websocketUrl() {
   const configured = import.meta.env.VITE_WS_URL;
   const token = localStorage.getItem("kh_token");
   const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+  
   if (configured && token) {
     return `${configured}${configured.includes("?") ? "&" : "?"}${suffix.slice(1)}`;
   }
   if (configured) return configured;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/ws/chat${suffix}`;
+  
+  // In production, use the Render backend; in dev, use relative URL
+  let baseUrl = API_URL;
+  if (import.meta.env.PROD && !import.meta.env.VITE_WS_URL) {
+    baseUrl = "https://knowledgehub-ai-rag-system.onrender.com";
+  } else if (!import.meta.env.PROD && !import.meta.env.VITE_WS_URL) {
+    baseUrl = window.location.origin;
+  }
+  
+  const protocol = baseUrl.startsWith("https") ? "wss:" : "ws:";
+  const host = baseUrl.replace(/^https?:\/\//, "");
+  return `${protocol}//${host}/ws/chat${suffix}`;
 }
