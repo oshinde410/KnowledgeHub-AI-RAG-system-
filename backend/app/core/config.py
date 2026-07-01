@@ -45,6 +45,9 @@ class Settings(BaseSettings):
 
 
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://knowledge-hub-ai-rag-system.vercel.app"
+    # Optional: prefer remote OpenAI embeddings when provided to avoid loading
+    # heavy local ML libraries in the web process (helps stay under 512MB).
+    OPENAI_API_KEY: str | None = None
 
 
     class Config:

@@ -107,6 +107,72 @@ export async function askQuestion(question: string, conversationId: string | nul
   });
 }
 
+// Streamed ask via WebSocket. Callbacks receive incremental tokens and final result.
+export function askQuestionStream(
+  question: string,
+  conversationId: string | null | undefined,
+  onToken: (token: string) => void,
+  onDone: (result: { conversation_id?: string; answer?: string; sources?: any[] } | null) => void,
+  onError?: (err: Error) => void
+) {
+  const url = websocketUrl();
+  const ws = new WebSocket(url);
+
+  ws.addEventListener("open", () => {
+    ws.send(
+      JSON.stringify({
+        question,
+        conversation_id: conversationId ?? null,
+      })
+    );
+  });
+
+  let buffer = "";
+
+  ws.addEventListener("message", (ev) => {
+    try {
+      const data = JSON.parse(ev.data as string);
+
+      if (data.type === "token") {
+        const token = data.content || "";
+        buffer += token;
+        onToken(token);
+        return;
+      }
+
+      if (data.type === "done") {
+        onDone({ conversation_id: data.conversation_id, answer: data.answer, sources: data.sources });
+        ws.close();
+        return;
+      }
+
+      if (data.type === "error") {
+        onError?.(new Error(data.message || "Unknown websocket error"));
+      }
+
+    } catch (e) {
+      onError?.(e as Error);
+    }
+  });
+
+  ws.addEventListener("error", (ev) => {
+    onError?.(new Error("WebSocket error"));
+  });
+
+  ws.addEventListener("close", () => {
+    // If closed without done, call onDone with null to signal termination.
+    onDone(null);
+  });
+
+  return () => {
+    try {
+      ws.close();
+    } catch (e) {
+      /* ignore */
+    }
+  };
+}
+
 export async function createChatSession() {
   return request<{ session_id: string }>("/chat/session", {
     method: "POST"
