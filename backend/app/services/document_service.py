@@ -92,7 +92,13 @@ def delete_document(db: Session, document_id: str):
     if not document:
         return None
 
-    delete_document_vectors(document_id)
+    try:
+        delete_document_vectors(document_id)
+    except Exception as exc:
+        print(
+            "[document_service] delete_document_vectors failed, continuing document cleanup:",
+            repr(exc)
+        )
 
     db.query(DocumentChunk).filter(
         DocumentChunk.document_id == document_id

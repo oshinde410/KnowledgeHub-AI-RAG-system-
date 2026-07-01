@@ -130,17 +130,25 @@ def search_chunks(
 def delete_document_vectors(document_id: str):
     from qdrant_client.models import FieldCondition, Filter, FilterSelector, MatchValue
 
-    client = _get_client()
-    client.delete(
-        collection_name=get_embedding_collection_name(),
-        points_selector=FilterSelector(
-            filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="document_id",
-                        match=MatchValue(value=document_id)
-                    )
-                ]
+    try:
+        client = _get_client()
+        client.delete(
+            collection_name=get_embedding_collection_name(),
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(value=document_id)
+                        )
+                    ]
+                )
             )
         )
-    )
+    except Exception as exc:
+        print(
+            "[qdrant_service] delete_document_vectors skipped due to error:",
+            repr(exc)
+        )
+        return False
+    return True
