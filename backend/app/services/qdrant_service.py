@@ -1,12 +1,5 @@
-from qdrant_client import QdrantClient
-from qdrant_client.models import FieldCondition
-from qdrant_client.models import Filter
-from qdrant_client.models import MatchAny
-from qdrant_client.models import MatchValue
-from qdrant_client.models import PointStruct
-from qdrant_client.models import FilterSelector
-
 from app.core.config import settings
+from app.services.embedding_service import get_embedding_collection_name
 
 
 # Supports both local Qdrant (host/port) and Qdrant Cloud (cluster endpoint + API key).
@@ -23,24 +16,17 @@ else:
         port=settings.QDRANT_PORT,
     )
 
-    # Lazy Qdrant client: avoid creating the client at import time to keep the
-    # web process lightweight (the client may perform network/version checks
-    # and import heavier internals).
-    _client = None
 
-    def _get_client():
-        global _client
-        if _client is None:
-            from qdrant_client import QdrantClient
-
-            _client = QdrantClient(**_client_kwargs)
-        return _client
+_client = None
 
 
-from qdrant_client.models import (
-    Distance,
-    VectorParams
-)
+def _get_client():
+    global _client
+    if _client is None:
+        from qdrant_client import QdrantClient
+
+        _client = QdrantClient(**_client_kwargs)
+    return _client
 
 
 def create_collection():
@@ -62,13 +48,14 @@ def create_collection():
         client = _get_client()
         collections = client.get_collections()
         existing = [c.name for c in collections.collections]
-        if "document_chunks" in existing:
+        collection_name = get_embedding_collection_name()
+        if collection_name in existing:
             return
 
         client.create_collection(
-            collection_name="document_chunks",
+            collection_name=collection_name,
             vectors_config=VectorParams(
-                size=384,
+                size=int(collection_name.split("_")[-1]),
                 distance=Distance.COSINE,
             ),
         )
@@ -91,9 +78,11 @@ def insert_chunk(
     If you later need chunk text from Qdrant, store only document_id + chunk_id
     and fetch chunk text from Postgres (DocumentChunk table).
     """
+    from qdrant_client.models import PointStruct
+
     client = _get_client()
     client.upsert(
-        collection_name="document_chunks",
+        collection_name=get_embedding_collection_name(),
         points=[
             PointStruct(
                 id=chunk_id,
@@ -112,6 +101,8 @@ def search_chunks(
     limit=5,
     document_ids=None
 ):
+    from qdrant_client.models import FieldCondition, Filter, MatchAny
+
     query_filter = None
     if document_ids:
         query_filter = Filter(
@@ -125,7 +116,7 @@ def search_chunks(
 
     client = _get_client()
     result = client.query_points(
-        collection_name="document_chunks",
+        collection_name=get_embedding_collection_name(),
         query=vector,
         limit=limit,
         query_filter=query_filter
@@ -135,9 +126,11 @@ def search_chunks(
 
 
 def delete_document_vectors(document_id: str):
+    from qdrant_client.models import FieldCondition, Filter, FilterSelector, MatchValue
+
     client = _get_client()
     client.delete(
-        collection_name="document_chunks",
+        collection_name=get_embedding_collection_name(),
         points_selector=FilterSelector(
             filter=Filter(
                 must=[

@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 from app.core.config import settings
 
+OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSION_LOCAL = 384
+
 _model: Any | None = None
 
 
@@ -22,6 +25,14 @@ def _get_model():
     return _model
 
 
+def get_embedding_dimension():
+    return 1536 if settings.OPENAI_API_KEY else EMBEDDING_DIMENSION_LOCAL
+
+
+def get_embedding_collection_name():
+    return f"document_chunks_{get_embedding_dimension()}"
+
+
 def _openai_embedding(text: str):
     import json
     import urllib.request
@@ -29,8 +40,7 @@ def _openai_embedding(text: str):
     url = "https://api.openai.com/v1/embeddings"
     payload = {
         "input": text,
-        # prefer small embedding model to reduce latency/cost
-        "model": "text-embedding-3-small",
+        "model": OPENAI_EMBEDDING_MODEL,
     }
 
     req = urllib.request.Request(
@@ -56,6 +66,7 @@ def create_embedding(text: str):
     # process which can push memory above 512MB.
     if settings.OPENAI_API_KEY:
         return _openai_embedding(text)
+
     # Delegate embedding computation to a Celery worker so the web
     # process never needs to load heavy ML libraries. If Celery isn't
     # available, do NOT fall back to importing the local model here —
