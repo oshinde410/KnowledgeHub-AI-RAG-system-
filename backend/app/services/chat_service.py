@@ -281,11 +281,19 @@ def stream_chat(db: Session, user_id: str, request: ChatRequest) -> Generator[di
     answer = ""
     generation_started = time.perf_counter()
 
-    for token in stream_answer(prompt):
-        answer += token
+    try:
+        for token in stream_answer(prompt):
+            answer += token
+            yield {
+                "type": "token",
+                "content": token
+            }
+    except Exception as exc:
+        print("[chat_service] stream_answer failed:", repr(exc))
+        answer = FALLBACK_ANSWER
         yield {
             "type": "token",
-            "content": token
+            "content": ""
         }
 
     generation_time_ms = int((time.perf_counter() - generation_started) * 1000)

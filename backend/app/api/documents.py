@@ -13,10 +13,10 @@ from app.services.document_service import save_document
 from app.services.document_service import delete_document
 from app.services.job_service import create_processing_job
 from app.services.job_service import list_processing_jobs
-from app.tasks import process_document_task
 from app.models.document import Document
 from app.models.document_content import DocumentContent
 from app.models.document_chunk import DocumentChunk
+from app.celery_app import celery_app
 
 
 router = APIRouter(
@@ -45,9 +45,10 @@ def upload_document(
             document.id
         )
 
-        process_document_task.delay(
-            document.id,
-            job.id
+        celery_app.send_task(
+            "app.tasks.process_document_task",
+            args=[document.id, job.id],
+            ignore_result=True,
         )
 
         return {
