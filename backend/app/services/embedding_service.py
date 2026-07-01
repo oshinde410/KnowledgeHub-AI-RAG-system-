@@ -56,8 +56,22 @@ def create_embedding(text: str):
     # process which can push memory above 512MB.
     if settings.OPENAI_API_KEY:
         return _openai_embedding(text)
+    # Delegate embedding computation to a Celery worker so the web
+    # process never needs to load heavy ML libraries. If Celery isn't
+    # available, do NOT fall back to importing the local model here —
+    # importing `sentence_transformers` in the web process can push memory
+    # usage above Render's 512MB limit. Instead raise a clear error so the
+    # deploy can be fixed (start a worker or set `OPENAI_API_KEY`).
+    try:
+        # import here to keep top-level imports light in the web process
+        from app.celery_app import celery_app
 
-    model = _get_model()
-    # encode -> numpy array; convert to python list for JSON/Qdrant client.
-    return model.encode(text).tolist()
+        async_result = celery_app.send_task("app.tasks.compute_embedding_task", args=[text])
+        # Wait briefly for worker result; if worker not running this will raise/timeout.
+        return async_result.get(timeout=20)
+    except Exception as exc:
+        raise RuntimeError(
+            "Embedding worker not available. Start the Celery worker or set OPENAI_API_KEY in environment. "
+            f"(original error: {exc})"
+        )
 

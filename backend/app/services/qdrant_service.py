@@ -23,7 +23,18 @@ else:
         port=settings.QDRANT_PORT,
     )
 
-client = QdrantClient(**_client_kwargs)
+    # Lazy Qdrant client: avoid creating the client at import time to keep the
+    # web process lightweight (the client may perform network/version checks
+    # and import heavier internals).
+    _client = None
+
+    def _get_client():
+        global _client
+        if _client is None:
+            from qdrant_client import QdrantClient
+
+            _client = QdrantClient(**_client_kwargs)
+        return _client
 
 
 from qdrant_client.models import (
@@ -48,6 +59,7 @@ def create_collection():
         return
 
     try:
+        client = _get_client()
         collections = client.get_collections()
         existing = [c.name for c in collections.collections]
         if "document_chunks" in existing:
@@ -79,6 +91,7 @@ def insert_chunk(
     If you later need chunk text from Qdrant, store only document_id + chunk_id
     and fetch chunk text from Postgres (DocumentChunk table).
     """
+    client = _get_client()
     client.upsert(
         collection_name="document_chunks",
         points=[
@@ -110,6 +123,7 @@ def search_chunks(
             ]
         )
 
+    client = _get_client()
     result = client.query_points(
         collection_name="document_chunks",
         query=vector,
@@ -121,6 +135,7 @@ def search_chunks(
 
 
 def delete_document_vectors(document_id: str):
+    client = _get_client()
     client.delete(
         collection_name="document_chunks",
         points_selector=FilterSelector(
