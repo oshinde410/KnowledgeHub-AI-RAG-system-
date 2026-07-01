@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from alembic import command
@@ -47,7 +48,19 @@ def startup():
         alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
         alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
         command.upgrade(alembic_cfg, "head")
+        print("[startup] alembic upgrade completed")
     except Exception as exc:
-        print("[startup] alembic upgrade skipped:", repr(exc))
+        print("[startup] alembic upgrade failed:", repr(exc))
 
-    create_collection()
+    try:
+        create_collection()
+        print("[startup] qdrant init completed")
+    except Exception as exc:
+        print("[startup] qdrant init failed:", repr(exc))
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
