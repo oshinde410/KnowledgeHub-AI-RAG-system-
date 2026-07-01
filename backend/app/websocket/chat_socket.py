@@ -69,11 +69,19 @@ async def websocket_chat(
                 document_ids=data.get("document_ids") or []
             )
 
-            for event in stream_chat(db, user.id, request):
-
+            try:
+                for event in stream_chat(db, user.id, request):
+                    await manager.send_json(websocket, event)
+            except Exception as exc:
+                print("[websocket] stream failed:", repr(exc))
                 await manager.send_json(
                     websocket,
-                    event
+                    {
+                        "type": "done",
+                        "conversation_id": conversation_id,
+                        "answer": "The service is currently unavailable. Please try again shortly.",
+                        "sources": []
+                    }
                 )
 
     except WebSocketDisconnect:

@@ -10,7 +10,11 @@ def retrieve_context(
     query: str,
     document_ids: list[str] | None = None,
 ):
-    vector = create_embedding(query)
+    try:
+        vector = create_embedding(query)
+    except Exception as exc:
+        print("[retrieval] embedding failed:", repr(exc))
+        return []
 
     results = search_chunks(vector, document_ids=document_ids)
 

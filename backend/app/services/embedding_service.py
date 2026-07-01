@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from app.core.config import settings
 
-OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+GEMINI_EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIMENSION_LOCAL = 384
 
 _model: Any | None = None
@@ -26,46 +26,52 @@ def _get_model():
 
 
 def get_embedding_dimension():
-    return 1536 if settings.OPENAI_API_KEY else EMBEDDING_DIMENSION_LOCAL
+    return 3072 if settings.GEMINI_API_KEY else EMBEDDING_DIMENSION_LOCAL
 
 
 def get_embedding_collection_name():
     return f"document_chunks_{get_embedding_dimension()}"
 
 
-def _openai_embedding(text: str):
+def _gemini_embedding(text: str):
     import json
+    import urllib.parse
     import urllib.request
 
-    url = "https://api.openai.com/v1/embeddings"
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_EMBEDDING_MODEL}:embedContent"
+        f"?key={urllib.parse.quote(settings.GEMINI_API_KEY)}"
+    )
     payload = {
-        "input": text,
-        "model": OPENAI_EMBEDDING_MODEL,
+        "model": "models/" + GEMINI_EMBEDDING_MODEL,
+        "content": {"parts": [{"text": text}]},
     }
 
     req = urllib.request.Request(
         url=url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-        },
+        headers={"Content-Type": "application/json"},
         method="POST",
     )
 
     with urllib.request.urlopen(req, timeout=30) as resp:
         body = resp.read().decode("utf-8")
     data = json.loads(body)
-    # OpenAI returns: data[0].embedding as list of floats
-    return data[0]["embedding"]
+    embedding = data.get("embedding", {}).get("values")
+    if not embedding:
+        raise RuntimeError("Gemini embedding response did not contain values")
+    return embedding
 
 
 def create_embedding(text: str):
-    # If an OpenAI API key is present, prefer remote embeddings to keep the
+    # If a Gemini API key is present, prefer remote embeddings to keep the
     # web process small. This avoids importing torch/transformers in the web
     # process which can push memory above 512MB.
-    if settings.OPENAI_API_KEY:
-        return _openai_embedding(text)
+    if settings.GEMINI_API_KEY:
+        return _gemini_embedding(text)
 
     # Delegate embedding computation to a Celery worker so the web
     # process never needs to load heavy ML libraries. If Celery isn't
@@ -82,7 +88,7 @@ def create_embedding(text: str):
         return async_result.get(timeout=20)
     except Exception as exc:
         raise RuntimeError(
-            "Embedding worker not available. Start the Celery worker or set OPENAI_API_KEY in environment. "
+            "Embedding worker not available. Start the Celery worker or set GEMINI_API_KEY in environment. "
             f"(original error: {exc})"
         )
 
