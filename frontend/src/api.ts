@@ -8,7 +8,11 @@ import type {
   User
 } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+const DEFAULT_API_URL = import.meta.env.PROD
+  ? "https://knowledgehub-ai-rag-system.onrender.com"
+  : "http://127.0.0.1:8000";
+
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("kh_token");
@@ -132,7 +136,9 @@ export async function semanticSearch(query: string) {
 }
 
 export function websocketUrl() {
-  const configured = import.meta.env.VITE_WS_URL;
+  const configured = import.meta.env.VITE_WS_URL || (import.meta.env.PROD
+    ? "wss://knowledgehub-ai-rag-system.onrender.com/ws/chat"
+    : undefined);
   const token = localStorage.getItem("kh_token");
   const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
   if (configured && token) {
