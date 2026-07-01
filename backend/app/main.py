@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
@@ -11,7 +15,6 @@ from app.services.qdrant_service import create_collection
 from app.api.chat import router as chat_router
 from app.api.chat_session import router as chat_session_router
 from app.websocket.chat_socket import router as websocket_router
-
 
 
 app = FastAPI()
@@ -40,5 +43,11 @@ app.include_router(dashboard_router)
 
 @app.on_event("startup")
 def startup():
+    try:
+        alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+        command.upgrade(alembic_cfg, "head")
+    except Exception as exc:
+        print("[startup] alembic upgrade skipped:", repr(exc))
 
     create_collection()
