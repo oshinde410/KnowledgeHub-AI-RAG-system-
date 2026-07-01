@@ -44,19 +44,25 @@ app.include_router(dashboard_router)
 
 @app.on_event("startup")
 def startup():
-    try:
-        alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-        command.upgrade(alembic_cfg, "head")
-        print("[startup] alembic upgrade completed")
-    except Exception as exc:
-        print("[startup] alembic upgrade failed:", repr(exc))
+    if os.getenv("SKIP_DB_MIGRATIONS", "false").lower() not in {"1", "true", "yes"}:
+        try:
+            alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+            alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+            command.upgrade(alembic_cfg, "head")
+            print("[startup] alembic upgrade completed")
+        except Exception as exc:
+            print("[startup] alembic upgrade failed:", repr(exc))
+    else:
+        print("[startup] skipping alembic migrations")
 
-    try:
-        create_collection()
-        print("[startup] qdrant init completed")
-    except Exception as exc:
-        print("[startup] qdrant init failed:", repr(exc))
+    if os.getenv("SKIP_QDRANT_INIT", "false").lower() not in {"1", "true", "yes"}:
+        try:
+            create_collection()
+            print("[startup] qdrant init completed")
+        except Exception as exc:
+            print("[startup] qdrant init failed:", repr(exc))
+    else:
+        print("[startup] skipping qdrant init")
 
 
 if __name__ == "__main__":

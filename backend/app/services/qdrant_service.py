@@ -25,7 +25,7 @@ def _get_client():
     if _client is None:
         from qdrant_client import QdrantClient
 
-        _client = QdrantClient(**_client_kwargs)
+        _client = QdrantClient(**_client_kwargs, check_compatibility=False)
     return _client
 
 
@@ -51,6 +51,8 @@ def create_collection():
         collection_name = get_embedding_collection_name()
         if collection_name in existing:
             return
+
+        from qdrant_client.models import Distance, VectorParams
 
         client.create_collection(
             collection_name=collection_name,
